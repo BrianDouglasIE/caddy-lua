@@ -36,11 +36,12 @@ func (h *LuaFileHandler) Provision(ctx caddy.Context) error {
 		return fmt.Errorf("lua: script file does not exist: %s", abs)
 	}
 	h.fileAbs = abs
+
 	return nil
 }
 
 func (h *LuaFileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	return luaServeHTTP(w, r, next, h.fileAbs, true)
+	return luaServeHTTPFile(w, r, next, h.fileAbs)
 }
 
 func (h *LuaFileHandler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
