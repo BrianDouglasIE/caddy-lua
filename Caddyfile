@@ -10,10 +10,10 @@
 
         handle / {
             lua `
-                function handle(req, resp)
-                    resp.Status = 200
-                    resp.Body = "Hello from inline Lua!"
-                end
+                local req = __CADDY_REQUEST
+                local res = __CADDY_RESPONSE
+                res.Status = 200
+                res.Body = "Hi from global __CADDY vars!"
             `
         }
     }

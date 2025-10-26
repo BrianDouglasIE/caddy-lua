@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/caddyserver/caddy/v2"
+	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )
 
@@ -39,5 +40,20 @@ func (h *LuaFileHandler) Provision(ctx caddy.Context) error {
 }
 
 func (h *LuaFileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	return luaServeHTTPScriptPath(w, r, h.scriptAbs)
+	return luaServeHTTP(w, r, h.scriptAbs, true)
+}
+
+func (h *LuaFileHandler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+	for d.Next() {
+		if !d.NextArg() {
+			return d.ArgErr()
+		}
+
+		h.ScriptPath = d.Val()
+
+		if d.NextArg() {
+			return d.ArgErr()
+		}
+	}
+	return nil
 }

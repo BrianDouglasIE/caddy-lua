@@ -1,19 +1,11 @@
-function handle(req, resp)
-    if req.Method == "GET" and req.URL == "/app" then
-        resp.Status = 200
-        resp.Header = { ["Content-Type"] = { "application/json" } }
-        resp.Body = [[{"message":"Hello from FrankenLua + LuaJIT!"}]]
-        return
-    end
+local req = __CADDY_REQUEST
+local res = __CADDY_RESPONSE
 
-    if req.Method == "POST" and req.URL == "/app/echo" then
-        resp.Status = 200
-        resp.Header = { ["Content-Type"] = { "application/json" } }
-        resp.Body = req.Body or [[{"message":"(no body)"}]]
-        return
-    end
-
-    resp.Status = 404
-    resp.Header = { ["Content-Type"] = { "application/json" } }
-    resp.Body = [[{"error":"Not Found"}]]
+if req.Method == "GET" and req.URL == "/app" then
+    res.Status = 200
+    res.Header = { ["Content-Type"] = { "application/json" } }
+    res.Body = '{"message": "Hello from __CADDY globals!"}'
+else
+    res.Status = 404
+    res.Body = '{"error": "Not Found"}'
 end

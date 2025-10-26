@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/caddyserver/caddy/v2"
+	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )
 
@@ -28,5 +29,20 @@ func (h *LuaHandler) Provision(ctx caddy.Context) error {
 }
 
 func (h *LuaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	return luaServeHTTPBlock(w, r, h.LuaBlock)
+	return luaServeHTTP(w, r, h.LuaBlock, false)
+}
+
+func (h *LuaHandler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+	for d.Next() {
+		if !d.NextArg() {
+			return d.ArgErr()
+		}
+
+		h.LuaBlock = d.Val()
+
+		if d.NextArg() {
+			return d.ArgErr()
+		}
+	}
+	return nil
 }
