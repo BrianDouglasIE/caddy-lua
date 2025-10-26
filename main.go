@@ -52,7 +52,7 @@ func parseLuaDirective(h httpcaddyfile.Helper, kind string) (caddyhttp.Middlewar
 			if !h.NextArg() {
 				return nil, h.ArgErr()
 			}
-			handler.ScriptPath = h.Val()
+			handler.FilePath = h.Val()
 			if h.NextArg() {
 				return nil, h.ArgErr()
 			}

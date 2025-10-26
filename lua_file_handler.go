@@ -12,8 +12,8 @@ import (
 )
 
 type LuaFileHandler struct {
-	ScriptPath string `json:"script_path,omitempty"`
-	scriptAbs  string
+	FilePath string `json:"file_path,omitempty"`
+	fileAbs  string
 }
 
 func (LuaFileHandler) CaddyModule() caddy.ModuleInfo {
@@ -24,23 +24,23 @@ func (LuaFileHandler) CaddyModule() caddy.ModuleInfo {
 }
 
 func (h *LuaFileHandler) Provision(ctx caddy.Context) error {
-	if h.ScriptPath == "" {
-		return fmt.Errorf("lua: script_path is required")
+	if h.FilePath == "" {
+		return fmt.Errorf("lua: file_path is required")
 	}
 
-	abs, err := filepath.Abs(h.ScriptPath)
+	abs, err := filepath.Abs(h.FilePath)
 	if err != nil {
 		return fmt.Errorf("lua: cannot resolve script path: %w", err)
 	}
 	if _, err = os.Stat(abs); os.IsNotExist(err) {
 		return fmt.Errorf("lua: script file does not exist: %s", abs)
 	}
-	h.scriptAbs = abs
+	h.fileAbs = abs
 	return nil
 }
 
 func (h *LuaFileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	return luaServeHTTP(w, r, next, h.scriptAbs, true)
+	return luaServeHTTP(w, r, next, h.fileAbs, true)
 }
 
 func (h *LuaFileHandler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
@@ -49,7 +49,7 @@ func (h *LuaFileHandler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			return d.ArgErr()
 		}
 
-		h.ScriptPath = d.Val()
+		h.FilePath = d.Val()
 
 		if d.NextArg() {
 			return d.ArgErr()
