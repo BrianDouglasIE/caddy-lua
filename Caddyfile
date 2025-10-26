@@ -1,0 +1,21 @@
+{
+  debug
+}
+
+:8080 {
+    route {
+        handle /app* {
+            lua_file ./app.lua
+        }
+
+        handle / {
+            lua `
+                function handle(req, resp)
+                    resp.Status = 200
+                    resp.Body = "Hello from inline Lua!"
+                end
+            `
+        }
+    }
+}
+
