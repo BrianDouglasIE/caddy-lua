@@ -40,7 +40,7 @@ func (h *LuaFileHandler) Provision(ctx caddy.Context) error {
 }
 
 func (h *LuaFileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	return luaServeHTTP(w, r, h.scriptAbs, true)
+	return luaServeHTTP(w, r, next, h.scriptAbs, true)
 }
 
 func (h *LuaFileHandler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {

@@ -5,6 +5,7 @@
 :8080 {
     route {
         handle /app* {
+            lua_file ./logger.middleware.lua
             lua_file ./app.lua
         }
 

@@ -29,7 +29,7 @@ func (h *LuaHandler) Provision(ctx caddy.Context) error {
 }
 
 func (h *LuaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	return luaServeHTTP(w, r, h.LuaBlock, false)
+	return luaServeHTTP(w, r, next, h.LuaBlock, false)
 }
 
 func (h *LuaHandler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
