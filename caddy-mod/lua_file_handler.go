@@ -1,4 +1,4 @@
-package lute
+package LOOT
 
 import (
 	"fmt"

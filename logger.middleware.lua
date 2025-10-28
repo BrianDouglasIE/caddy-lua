@@ -1,2 +1,2 @@
-print("Route is : " .. __CADDY_REQUEST.URL)
-__CADDY_NEXT()
+print("Route is : " .. __LOOT_REQ.URL)
+__LOOT_NXT()

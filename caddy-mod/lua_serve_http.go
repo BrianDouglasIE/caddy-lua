@@ -1,9 +1,12 @@
-package lute
+package LOOT
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"net/textproto"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/caddyserver/caddy"
@@ -15,19 +18,19 @@ func luaServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler
 	L := lua.NewState()
 	defer L.Close()
 
-	respTable := createResponseTable(L) // __CADDY_RESPONSE
-	createRequestTable(L, r)            // __CADDY_REQUEST
-	createServerInfoTable(L, r)         // __CADDY_SERVER_INFO
-	createEnvTable(L)                   // __CADDY_ENV
-	createUtilTable(L)                  // __CADDY_UTIL
-	setCaddyNextMethod(L, w, r, next)   // __CADDY_NEXT
+	respTable := createResponseTable(L) // __LOOT_RES
+	createRequestTable(L, r)            // __LOOT_REQ
+	createServerInfoTable(L, r)         // __LOOT_SRV
+	createEnvTable(L)                   // __LOOT_ENV
+	createUtilTable(L)                  // __LOOT_UTL
+	setCaddyNextMethod(L, w, r, next)   // __LOOT_NXT
 
 	if err := L.DoString(luaBlock); err != nil {
 		http.Error(w, "Lua script error: "+err.Error(), http.StatusInternalServerError)
 		return nil
 	}
 
-	handleLuaCode(L, w, respTable)
+	writeLuaResponse(L, w, respTable)
 	return nil
 }
 
@@ -35,73 +38,94 @@ func luaServeHTTPFile(w http.ResponseWriter, r *http.Request, next caddyhttp.Han
 	L := lua.NewState()
 	defer L.Close()
 
-	respTable := createResponseTable(L) // __CADDY_RESPONSE
-	createRequestTable(L, r)            // __CADDY_REQUEST
-	createServerInfoTable(L, r)         // __CADDY_SERVER_INFO
-	createEnvTable(L)                   // __CADDY_ENV
-	createUtilTable(L)                  // __CADDY_UTIL
-	setCaddyNextMethod(L, w, r, next)   // __CADDY_NEXT
+	respTable := createResponseTable(L) // __LOOT_RES
+	createRequestTable(L, r)            // __LOOT_REQ
+	createServerInfoTable(L, r)         // __LOOT_SRV
+	createEnvTable(L)                   // __LOOT_ENV
+	createUtilTable(L)                  // __LOOT_UTL
+	setCaddyNextMethod(L, w, r, next)   // __LOOT_NXT
 
 	if err := L.DoFile(filepath); err != nil {
 		http.Error(w, "Lua runtime error: "+err.Error(), http.StatusInternalServerError)
 		return nil
 	}
 
-	handleLuaCode(L, w, respTable)
+	writeLuaResponse(L, w, respTable)
 	return nil
 }
 
-func handleLuaCode(L *lua.LState, w http.ResponseWriter, respTable *lua.LTable) {
-	status := int(lua.LVAsNumber(L.GetField(respTable, "Status")))
-	if status == 0 {
-		status = http.StatusOK
-	}
+func writeLuaResponse(L *lua.LState, w http.ResponseWriter, respTable *lua.LTable) {
+	status := getResponseStatus(L.GetField(respTable, "Status"))
 
 	respHeaders := http.Header{}
 	luaHeaders := L.GetField(respTable, "Header")
 	if luaHeaders != lua.LNil {
-		if tbl, ok := luaHeaders.(*lua.LTable); ok {
-			tbl.ForEach(func(k, v lua.LValue) {
-				key := k.String()
-				switch vv := v.(type) {
-				case *lua.LTable:
-					vv.ForEach(func(_, val lua.LValue) {
-						respHeaders.Add(key, val.String())
-					})
-				default:
-					respHeaders.Set(key, vv.String())
-				}
-			})
+		tbl, ok := luaHeaders.(*lua.LTable)
+		if !ok {
+			L.RaiseError("response Header must be a table, got %s", luaHeaders.Type().String())
+			return
 		}
+
+		tbl.ForEach(func(k, v lua.LValue) {
+			key := textproto.CanonicalMIMEHeaderKey(k.String())
+			switch vv := v.(type) {
+			case *lua.LTable:
+				vv.ForEach(func(_, val lua.LValue) {
+					respHeaders.Add(key, val.String())
+				})
+			default:
+				respHeaders.Set(key, vv.String())
+			}
+		})
 	}
 
-	body := L.GetField(respTable, "Body")
 	var bodyBytes []byte
-	switch b := body.(type) {
-	case lua.LString:
-		bodyBytes = []byte(b)
-	case *lua.LTable:
-		var parts []string
-		b.ForEach(func(_, v lua.LValue) {
-			parts = append(parts, v.String())
-		})
-		bodyBytes = []byte(strings.Join(parts, ""))
+	body := L.GetField(respTable, "Body")
+	if body == lua.LNil {
+		bodyBytes = nil
+	} else if bodyStr, ok := body.(lua.LString); ok {
+		bodyBytes = []byte(string(bodyStr))
+	} else {
+		L.RaiseError("response Body must be a string, got %s", body.Type().String())
+		return
 	}
 
 	for k, vv := range respHeaders {
 		for _, v := range vv {
-			w.Header().Add(k, v)
+			w.Header()[k] = append(w.Header()[k], v)
 		}
 	}
+
 	w.WriteHeader(status)
-	if bodyBytes != nil {
-		_, _ = w.Write(bodyBytes)
+
+	if len(bodyBytes) > 0 && status >= 200 && status != http.StatusNoContent && status != http.StatusNotModified {
+		if _, err := w.Write(bodyBytes); err != nil {
+			log.Printf("error writing response body: %v", err)
+		}
 	}
+}
+
+func getResponseStatus(statusField lua.LValue) int {
+	if n, ok := statusField.(lua.LNumber); ok {
+		code := int(n)
+		if code >= 100 && code <= 599 {
+			return code
+		}
+		return http.StatusOK
+	}
+
+	if s, ok := statusField.(lua.LString); ok {
+		if parsed, err := strconv.Atoi(string(s)); err == nil && parsed >= 100 && parsed <= 599 {
+			return parsed
+		}
+	}
+
+	return http.StatusOK
 }
 
 func createRequestTable(L *lua.LState, r *http.Request) {
 	reqTable := L.NewTable()
-	L.SetGlobal("__CADDY_REQUEST", reqTable)
+	L.SetGlobal("__LOOT_REQ", reqTable)
 	L.SetField(reqTable, "Method", lua.LString(r.Method))
 	L.SetField(reqTable, "URL", lua.LString(r.URL.String()))
 	L.SetField(reqTable, "Proto", lua.LString(r.Proto))
@@ -121,7 +145,7 @@ func createRequestTable(L *lua.LState, r *http.Request) {
 
 func createResponseTable(L *lua.LState) *lua.LTable {
 	respTable := L.NewTable()
-	L.SetGlobal("__CADDY_RESPONSE", respTable)
+	L.SetGlobal("__LOOT_RES", respTable)
 	L.SetField(respTable, "Status", lua.LNumber(http.StatusOK))
 	L.SetField(respTable, "Header", L.NewTable())
 	L.SetField(respTable, "Body", lua.LString(""))
@@ -130,7 +154,7 @@ func createResponseTable(L *lua.LState) *lua.LTable {
 
 func createServerInfoTable(L *lua.LState, r *http.Request) {
 	serverInfoTable := L.NewTable()
-	L.SetGlobal("__CADDY_SERVER_INFO", serverInfoTable)
+	L.SetGlobal("__LOOT_SRV", serverInfoTable)
 	L.SetField(serverInfoTable, "Version", lua.LString(caddy.AppVersion))
 	L.SetField(serverInfoTable, "Module", lua.LString("http.handlers.lua"))
 	L.SetField(serverInfoTable, "Hostname", lua.LString(r.Host))
@@ -139,7 +163,7 @@ func createServerInfoTable(L *lua.LState, r *http.Request) {
 
 func createEnvTable(L *lua.LState) {
 	env := L.NewTable()
-	L.SetGlobal("__CADDY_ENV", env)
+	L.SetGlobal("__LOOT_ENV", env)
 	for _, e := range os.Environ() {
 		parts := strings.SplitN(e, "=", 2)
 		L.SetField(env, parts[0], lua.LString(parts[1]))
@@ -148,7 +172,7 @@ func createEnvTable(L *lua.LState) {
 
 func createUtilTable(L *lua.LState) {
 	utilTable := L.NewTable()
-	L.SetGlobal("__CADDY_UTIL", utilTable)
+	L.SetGlobal("__LOOT_UTL", utilTable)
 
 	L.SetField(utilTable, "json_encode", L.NewFunction(func(L *lua.LState) int {
 		val := L.CheckAny(1)
@@ -177,7 +201,7 @@ func createUtilTable(L *lua.LState) {
 }
 
 func setCaddyNextMethod(L *lua.LState, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) {
-	L.SetGlobal("__CADDY_NEXT", L.NewFunction(func(L *lua.LState) int {
+	L.SetGlobal("__LOOT_NXT", L.NewFunction(func(L *lua.LState) int {
 		err := next.ServeHTTP(w, r)
 		if err != nil {
 			L.Push(lua.LString(err.Error()))

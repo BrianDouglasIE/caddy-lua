@@ -1,9 +1,9 @@
-local req = __CADDY_REQUEST
-local res = __CADDY_RESPONSE
-local next = __CADDY_NEXT
-local env = __CADDY_ENV
-local util = __CADDY_UTIL
-local server_info = __CADDY_SERVER_INFO
+local req = __LOOT_REQ
+local res = __LOOT_RES
+local next = __LOOT_NXT
+local env = __LOOT_ENV
+local util = __LOOT_UTL
+local server_info = __LOOT_SRV
 
 if req.Method == "GET" and req.URL == "/app" then
     res.Status = 200

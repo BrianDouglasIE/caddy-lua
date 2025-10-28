@@ -1,4 +1,4 @@
-module github.com/briandouglasie/lute
+module github.com/briandouglasie/LOOT
 
 go 1.25.3
 

@@ -1,6 +1,6 @@
-# Lute
+# LOOT
 
-Use Lua within Caddy to create web apps and script middleware.
+A tool for making websites with Lua, using the Caddy web server.
 
 ## Example Usage
 
@@ -14,10 +14,10 @@ Use Lua within Caddy to create web apps and script middleware.
 
         handle / {
             lua `
-                local req = __CADDY_REQUEST
-                local res = __CADDY_RESPONSE
+                local req = __LOOT_REQ
+                local res = __LOOT_RES
                 res.Status = 200
-                res.Body = "Hi from global __CADDY vars!"
+                res.Body = "Hi from LOOT"
             `
         }
     }
@@ -26,12 +26,12 @@ Use Lua within Caddy to create web apps and script middleware.
 
 ```lua
 -- app.lua
-local req = __CADDY_REQUEST
-local res = __CADDY_RESPONSE
-local next = __CADDY_NEXT
-local env = __CADDY_ENV
-local util = __CADDY_UTIL
-local server_info = __CADDY_SERVER_INFO
+local req = __LOOT_REQ
+local res = __LOOT_RES
+local next = __LOOT_NXT
+local env = __LOOT_ENV
+local util = __LOOT_UTL
+local server_info = __LOOT_SVR
 
 if req.Method == "GET" and req.URL == "/app" then
     res.Status = 200
@@ -45,9 +45,9 @@ end
 
 ## The Global Vars
 
-Lute makes the following global variables available to your Lua code.
+loot makes the following global variables available to your Lua code.
 
-### __CADDY_REQUEST
+### __LOOT_REQ
 
 This table holds the following `*http.Request` values.
 
@@ -58,7 +58,7 @@ This table holds the following `*http.Request` values.
  - RemoteAddr
  - Header
 
-### __CADDY_RESPONSE
+### __LOOT_RES
 
 This table will be used to build Caddy's response. It contains the following values.
 
@@ -66,7 +66,7 @@ This table will be used to build Caddy's response. It contains the following val
  - Header
  - Body
 
-### __CADDY_NEXT
+### __LOOT_NXT
 
 This method allows lua code to be used as Caddy middleware. It is a reference to the
 `next caddyhttp.Handler` from the `ServeHttp` method.
@@ -76,15 +76,15 @@ This method allows lua code to be used as Caddy middleware. It is a reference to
 ```
 handle /app* {
     lua `
-        print("Route is : " .. __CADDY_REQUEST.URL)
-        __CADDY_NEXT() -- Must be called to continue to next directive
+        print("Route is : " .. __LOOT_REQ.URL)
+        __LOOT_NXT() -- Must be called to continue to next directive
     `
     lua_file ./app.lua
 }
 ```
 
 
-### __CADDY_SERVER_INFO
+### __LOOT_SVR
 
 This table holds info about the Caddy server. It contains the following fields.
 
@@ -93,11 +93,11 @@ This table holds info about the Caddy server. It contains the following fields.
  - Hostname
  - TLS
 
-### __CADDY_ENV
+### __LOOT_ENV
 
 This table contains the `os.Environ()` values that are available.
 
-### __CADDY_UTIL
+### __LOOT_UTL
 
 This table holds certain Golang methods that are useful to the Lua script.
 

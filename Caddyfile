@@ -11,10 +11,9 @@
 
         handle / {
             lua `
-                local req = __CADDY_REQUEST
-                local res = __CADDY_RESPONSE
+                local res = __LOOT_RES
                 res.Status = 200
-                res.Body = "Hi from global __CADDY vars!"
+                res.Body = "Hi from LOOT"
             `
         }
     }
