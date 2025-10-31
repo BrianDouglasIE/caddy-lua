@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
 	"net/textproto"
 	"os"
 	"strconv"
@@ -23,6 +24,7 @@ func luaServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler
 	createServerInfoTable(L, r)         // __LOOTBOX_SRV
 	createEnvTable(L)                   // __LOOTBOX_ENV
 	createUtilTable(L)                  // __LOOTBOX_UTL
+	createUrlTable(L, r.URL)            // __LOOTBOX_URL
 	setCaddyNextMethod(L, w, r, next)   // __LOOTBOX_NXT
 
 	if err := L.DoString(luaBlock); err != nil {
@@ -43,6 +45,7 @@ func luaServeHTTPFile(w http.ResponseWriter, r *http.Request, next caddyhttp.Han
 	createServerInfoTable(L, r)         // __LOOTBOX_SRV
 	createEnvTable(L)                   // __LOOTBOX_ENV
 	createUtilTable(L)                  // __LOOTBOX_UTL
+	createUrlTable(L, r.URL)            // __LOOTBOX_URL
 	setCaddyNextMethod(L, w, r, next)   // __LOOTBOX_NXT
 
 	if err := L.DoFile(filepath); err != nil {
@@ -55,10 +58,10 @@ func luaServeHTTPFile(w http.ResponseWriter, r *http.Request, next caddyhttp.Han
 }
 
 func writeLuaResponse(L *lua.LState, w http.ResponseWriter, respTable *lua.LTable) {
-	status := getResponseStatus(L.GetField(respTable, "Status"))
+	status := getResponseStatus(L.GetField(respTable, "status"))
 
 	respHeaders := http.Header{}
-	luaHeaders := L.GetField(respTable, "Header")
+	luaHeaders := L.GetField(respTable, "header")
 	if luaHeaders != lua.LNil {
 		tbl, ok := luaHeaders.(*lua.LTable)
 		if !ok {
@@ -126,11 +129,11 @@ func getResponseStatus(statusField lua.LValue) int {
 func createRequestTable(L *lua.LState, r *http.Request) {
 	reqTable := L.NewTable()
 	L.SetGlobal("__LOOTBOX_REQ", reqTable)
-	L.SetField(reqTable, "Method", lua.LString(r.Method))
-	L.SetField(reqTable, "URL", lua.LString(r.URL.String()))
-	L.SetField(reqTable, "Proto", lua.LString(r.Proto))
-	L.SetField(reqTable, "Host", lua.LString(r.Host))
-	L.SetField(reqTable, "RemoteAddr", lua.LString(r.RemoteAddr))
+	L.SetField(reqTable, "method", lua.LString(r.Method))
+	L.SetField(reqTable, "url", createUrlTable(L, r.URL))
+	L.SetField(reqTable, "proto", lua.LString(r.Proto))
+	L.SetField(reqTable, "host", lua.LString(r.Host))
+	L.SetField(reqTable, "remote_addr", lua.LString(r.RemoteAddr))
 
 	headers := L.NewTable()
 	for k, vv := range r.Header {
@@ -140,25 +143,46 @@ func createRequestTable(L *lua.LState, r *http.Request) {
 		}
 		headers.RawSetString(k, arr)
 	}
-	L.SetField(reqTable, "Header", headers)
+	L.SetField(reqTable, "header", headers)
+}
+
+func createUrlTable(L *lua.LState, URL *url.URL) *lua.LTable {
+	urlTable := L.NewTable()
+
+	L.SetField(urlTable, "protocol", lua.LString(URL.Scheme))
+	L.SetField(urlTable, "username", lua.LString(URL.User.Username()))
+	if pass, ok := URL.User.Password(); ok {
+		L.SetField(urlTable, "password", lua.LString(pass))
+	} else {
+		L.SetField(urlTable, "password", lua.LString(""))
+	}
+	L.SetField(urlTable, "hostname", lua.LString(URL.Hostname()))
+	L.SetField(urlTable, "port", lua.LString(URL.Port()))
+	L.SetField(urlTable, "pathname", lua.LString(URL.Path))
+	L.SetField(urlTable, "search", lua.LString(URL.RawQuery))
+	L.SetField(urlTable, "hash", lua.LString(URL.Fragment))
+
+	L.SetField(urlTable, "href", lua.LString(URL.String()))
+
+	return urlTable
 }
 
 func createResponseTable(L *lua.LState) *lua.LTable {
 	respTable := L.NewTable()
 	L.SetGlobal("__LOOTBOX_RES", respTable)
-	L.SetField(respTable, "Status", lua.LNumber(http.StatusOK))
-	L.SetField(respTable, "Header", L.NewTable())
-	L.SetField(respTable, "Body", lua.LString(""))
+	L.SetField(respTable, "status", lua.LNumber(http.StatusOK))
+	L.SetField(respTable, "header", L.NewTable())
+	L.SetField(respTable, "body", lua.LString(""))
 	return respTable
 }
 
 func createServerInfoTable(L *lua.LState, r *http.Request) {
 	serverInfoTable := L.NewTable()
 	L.SetGlobal("__LOOTBOX_SRV", serverInfoTable)
-	L.SetField(serverInfoTable, "Version", lua.LString(caddy.AppVersion))
-	L.SetField(serverInfoTable, "Module", lua.LString("http.handlers.lua"))
-	L.SetField(serverInfoTable, "Hostname", lua.LString(r.Host))
-	L.SetField(serverInfoTable, "TLS", lua.LBool(r.TLS != nil))
+	L.SetField(serverInfoTable, "version", lua.LString(caddy.AppVersion))
+	L.SetField(serverInfoTable, "module", lua.LString("http.handlers.lua"))
+	L.SetField(serverInfoTable, "hostname", lua.LString(r.Host))
+	L.SetField(serverInfoTable, "tls", lua.LBool(r.TLS != nil))
 }
 
 func createEnvTable(L *lua.LState) {
@@ -189,7 +213,7 @@ func createUtilTable(L *lua.LState) {
 
 	L.SetField(utilTable, "json_decode", L.NewFunction(func(L *lua.LState) int {
 		str := L.CheckString(1)
-		var decoded interface{}
+		var decoded any
 		if err := json.Unmarshal([]byte(str), &decoded); err != nil {
 			L.Push(lua.LNil)
 			L.Push(lua.LString(err.Error()))
