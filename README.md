@@ -1,4 +1,4 @@
-# LOOT
+# LOOTBOX
 
 A tool for making websites with Lua, using the Caddy web server.
 
@@ -14,10 +14,10 @@ A tool for making websites with Lua, using the Caddy web server.
 
         handle / {
             lua `
-                local req = __LOOT_REQ
-                local res = __LOOT_RES
+                local req = __LOOTBOX_REQ
+                local res = __LOOTBOX_RES
                 res.Status = 200
-                res.Body = "Hi from LOOT"
+                res.Body = "Hi from LOOTBOX"
             `
         }
     }
@@ -26,12 +26,12 @@ A tool for making websites with Lua, using the Caddy web server.
 
 ```lua
 -- app.lua
-local req = __LOOT_REQ
-local res = __LOOT_RES
-local next = __LOOT_NXT
-local env = __LOOT_ENV
-local util = __LOOT_UTL
-local server_info = __LOOT_SVR
+local req = __LOOTBOX_REQ
+local res = __LOOTBOX_RES
+local next = __LOOTBOX_NXT
+local env = __LOOTBOX_ENV
+local util = __LOOTBOX_UTL
+local server_info = __LOOTBOX_SVR
 
 if req.Method == "GET" and req.URL == "/app" then
     res.Status = 200
@@ -45,9 +45,9 @@ end
 
 ## The Global Vars
 
-loot makes the following global variables available to your Lua code.
+LOOTBOX makes the following global variables available to your Lua code.
 
-### __LOOT_REQ
+### __LOOTBOX_REQ
 
 This table holds the following `*http.Request` values.
 
@@ -58,7 +58,7 @@ This table holds the following `*http.Request` values.
  - RemoteAddr
  - Header
 
-### __LOOT_RES
+### __LOOTBOX_RES
 
 This table will be used to build Caddy's response. It contains the following values.
 
@@ -66,7 +66,7 @@ This table will be used to build Caddy's response. It contains the following val
  - Header
  - Body
 
-### __LOOT_NXT
+### __LOOTBOX_NXT
 
 This method allows lua code to be used as Caddy middleware. It is a reference to the
 `next caddyhttp.Handler` from the `ServeHttp` method.
@@ -76,15 +76,15 @@ This method allows lua code to be used as Caddy middleware. It is a reference to
 ```
 handle /app* {
     lua `
-        print("Route is : " .. __LOOT_REQ.URL)
-        __LOOT_NXT() -- Must be called to continue to next directive
+        print("Route is : " .. __LOOTBOX_REQ.URL)
+        __LOOTBOX_NXT() -- Must be called to continue to next directive
     `
     lua_file ./app.lua
 }
 ```
 
 
-### __LOOT_SVR
+### __LOOTBOX_SVR
 
 This table holds info about the Caddy server. It contains the following fields.
 
@@ -93,11 +93,11 @@ This table holds info about the Caddy server. It contains the following fields.
  - Hostname
  - TLS
 
-### __LOOT_ENV
+### __LOOTBOX_ENV
 
 This table contains the `os.Environ()` values that are available.
 
-### __LOOT_UTL
+### __LOOTBOX_UTL
 
 This table holds certain Golang methods that are useful to the Lua script.
 

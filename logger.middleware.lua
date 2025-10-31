@@ -1,2 +1,2 @@
-print("Route is : " .. __LOOT_REQ.URL)
-__LOOT_NXT()
+print("Route is : " .. __LOOTBOX_REQ.URL)
+__LOOTBOX_NXT()

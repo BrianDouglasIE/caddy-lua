@@ -11,11 +11,10 @@
 
         handle / {
             lua `
-                local res = __LOOT_RES
+                local res = __LOOTBOX_RES
                 res.Status = 200
-                res.Body = "Hi from LOOT"
+                res.Body = "Hi from LOOTBOX"
             `
         }
     }
 }
-

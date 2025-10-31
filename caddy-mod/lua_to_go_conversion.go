@@ -1,4 +1,4 @@
-package LOOT
+package LOOTBOX
 
 import (
 	"fmt"

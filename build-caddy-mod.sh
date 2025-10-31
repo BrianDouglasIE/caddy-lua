@@ -1,3 +1,3 @@
 cd ./caddy-mod
-xcaddy build --with LOOT=. --output=./bin/caddy
+xcaddy build --with LOOTBOX=. --output=./bin/caddy
 cd ..

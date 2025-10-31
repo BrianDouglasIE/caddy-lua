@@ -1,4 +1,4 @@
-module github.com/briandouglasie/LOOT
+module github.com/briandouglasie/LOOTBOX
 
 go 1.25.3
 

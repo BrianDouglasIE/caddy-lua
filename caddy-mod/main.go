@@ -1,4 +1,4 @@
-package LOOT
+package LOOTBOX
 
 import (
 	"github.com/caddyserver/caddy/v2"

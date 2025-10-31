@@ -1,4 +1,4 @@
-package LOOT
+package LOOTBOX
 
 import (
 	"encoding/json"
@@ -18,12 +18,12 @@ func luaServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler
 	L := lua.NewState()
 	defer L.Close()
 
-	respTable := createResponseTable(L) // __LOOT_RES
-	createRequestTable(L, r)            // __LOOT_REQ
-	createServerInfoTable(L, r)         // __LOOT_SRV
-	createEnvTable(L)                   // __LOOT_ENV
-	createUtilTable(L)                  // __LOOT_UTL
-	setCaddyNextMethod(L, w, r, next)   // __LOOT_NXT
+	respTable := createResponseTable(L) // __LOOTBOX_RES
+	createRequestTable(L, r)            // __LOOTBOX_REQ
+	createServerInfoTable(L, r)         // __LOOTBOX_SRV
+	createEnvTable(L)                   // __LOOTBOX_ENV
+	createUtilTable(L)                  // __LOOTBOX_UTL
+	setCaddyNextMethod(L, w, r, next)   // __LOOTBOX_NXT
 
 	if err := L.DoString(luaBlock); err != nil {
 		http.Error(w, "Lua script error: "+err.Error(), http.StatusInternalServerError)
@@ -38,12 +38,12 @@ func luaServeHTTPFile(w http.ResponseWriter, r *http.Request, next caddyhttp.Han
 	L := lua.NewState()
 	defer L.Close()
 
-	respTable := createResponseTable(L) // __LOOT_RES
-	createRequestTable(L, r)            // __LOOT_REQ
-	createServerInfoTable(L, r)         // __LOOT_SRV
-	createEnvTable(L)                   // __LOOT_ENV
-	createUtilTable(L)                  // __LOOT_UTL
-	setCaddyNextMethod(L, w, r, next)   // __LOOT_NXT
+	respTable := createResponseTable(L) // __LOOTBOX_RES
+	createRequestTable(L, r)            // __LOOTBOX_REQ
+	createServerInfoTable(L, r)         // __LOOTBOX_SRV
+	createEnvTable(L)                   // __LOOTBOX_ENV
+	createUtilTable(L)                  // __LOOTBOX_UTL
+	setCaddyNextMethod(L, w, r, next)   // __LOOTBOX_NXT
 
 	if err := L.DoFile(filepath); err != nil {
 		http.Error(w, "Lua runtime error: "+err.Error(), http.StatusInternalServerError)
@@ -125,7 +125,7 @@ func getResponseStatus(statusField lua.LValue) int {
 
 func createRequestTable(L *lua.LState, r *http.Request) {
 	reqTable := L.NewTable()
-	L.SetGlobal("__LOOT_REQ", reqTable)
+	L.SetGlobal("__LOOTBOX_REQ", reqTable)
 	L.SetField(reqTable, "Method", lua.LString(r.Method))
 	L.SetField(reqTable, "URL", lua.LString(r.URL.String()))
 	L.SetField(reqTable, "Proto", lua.LString(r.Proto))
@@ -145,7 +145,7 @@ func createRequestTable(L *lua.LState, r *http.Request) {
 
 func createResponseTable(L *lua.LState) *lua.LTable {
 	respTable := L.NewTable()
-	L.SetGlobal("__LOOT_RES", respTable)
+	L.SetGlobal("__LOOTBOX_RES", respTable)
 	L.SetField(respTable, "Status", lua.LNumber(http.StatusOK))
 	L.SetField(respTable, "Header", L.NewTable())
 	L.SetField(respTable, "Body", lua.LString(""))
@@ -154,7 +154,7 @@ func createResponseTable(L *lua.LState) *lua.LTable {
 
 func createServerInfoTable(L *lua.LState, r *http.Request) {
 	serverInfoTable := L.NewTable()
-	L.SetGlobal("__LOOT_SRV", serverInfoTable)
+	L.SetGlobal("__LOOTBOX_SRV", serverInfoTable)
 	L.SetField(serverInfoTable, "Version", lua.LString(caddy.AppVersion))
 	L.SetField(serverInfoTable, "Module", lua.LString("http.handlers.lua"))
 	L.SetField(serverInfoTable, "Hostname", lua.LString(r.Host))
@@ -163,7 +163,7 @@ func createServerInfoTable(L *lua.LState, r *http.Request) {
 
 func createEnvTable(L *lua.LState) {
 	env := L.NewTable()
-	L.SetGlobal("__LOOT_ENV", env)
+	L.SetGlobal("__LOOTBOX_ENV", env)
 	for _, e := range os.Environ() {
 		parts := strings.SplitN(e, "=", 2)
 		L.SetField(env, parts[0], lua.LString(parts[1]))
@@ -172,7 +172,7 @@ func createEnvTable(L *lua.LState) {
 
 func createUtilTable(L *lua.LState) {
 	utilTable := L.NewTable()
-	L.SetGlobal("__LOOT_UTL", utilTable)
+	L.SetGlobal("__LOOTBOX_UTL", utilTable)
 
 	L.SetField(utilTable, "json_encode", L.NewFunction(func(L *lua.LState) int {
 		val := L.CheckAny(1)
@@ -201,7 +201,7 @@ func createUtilTable(L *lua.LState) {
 }
 
 func setCaddyNextMethod(L *lua.LState, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) {
-	L.SetGlobal("__LOOT_NXT", L.NewFunction(func(L *lua.LState) int {
+	L.SetGlobal("__LOOTBOX_NXT", L.NewFunction(func(L *lua.LState) int {
 		err := next.ServeHTTP(w, r)
 		if err != nil {
 			L.Push(lua.LString(err.Error()))

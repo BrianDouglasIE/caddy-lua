@@ -1,9 +1,9 @@
-local req = __LOOT_REQ
-local res = __LOOT_RES
-local next = __LOOT_NXT
-local env = __LOOT_ENV
-local util = __LOOT_UTL
-local server_info = __LOOT_SRV
+local req = __LOOTBOX_REQ
+local res = __LOOTBOX_RES
+local next = __LOOTBOX_NXT
+local env = __LOOTBOX_ENV
+local util = __LOOTBOX_UTL
+local server_info = __LOOTBOX_SRV
 
 if req.Method == "GET" and req.URL == "/app" then
     res.Status = 200
