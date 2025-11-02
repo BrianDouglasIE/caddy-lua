@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"net/url"
 	"net/textproto"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -65,7 +65,7 @@ func writeLuaResponse(L *lua.LState, w http.ResponseWriter, respTable *lua.LTabl
 	if luaHeaders != lua.LNil {
 		tbl, ok := luaHeaders.(*lua.LTable)
 		if !ok {
-			L.RaiseError("response Header must be a table, got %s", luaHeaders.Type().String())
+			L.RaiseError("response header must be a table, got %s", luaHeaders.Type().String())
 			return
 		}
 
@@ -83,13 +83,13 @@ func writeLuaResponse(L *lua.LState, w http.ResponseWriter, respTable *lua.LTabl
 	}
 
 	var bodyBytes []byte
-	body := L.GetField(respTable, "Body")
+	body := L.GetField(respTable, "body")
 	if body == lua.LNil {
 		bodyBytes = nil
 	} else if bodyStr, ok := body.(lua.LString); ok {
 		bodyBytes = []byte(string(bodyStr))
 	} else {
-		L.RaiseError("response Body must be a string, got %s", body.Type().String())
+		L.RaiseError("response body must be a string, got %s", body.Type().String())
 		return
 	}
 
@@ -130,7 +130,7 @@ func createRequestTable(L *lua.LState, r *http.Request) {
 	reqTable := L.NewTable()
 	L.SetGlobal("__LOOTBOX_REQ", reqTable)
 	L.SetField(reqTable, "method", lua.LString(r.Method))
-	L.SetField(reqTable, "url", createUrlTable(L, r.URL))
+	L.SetField(reqTable, "url", lua.LString(r.URL.String()))
 	L.SetField(reqTable, "proto", lua.LString(r.Proto))
 	L.SetField(reqTable, "host", lua.LString(r.Host))
 	L.SetField(reqTable, "remote_addr", lua.LString(r.RemoteAddr))
@@ -146,9 +146,10 @@ func createRequestTable(L *lua.LState, r *http.Request) {
 	L.SetField(reqTable, "header", headers)
 }
 
-func createUrlTable(L *lua.LState, URL *url.URL) *lua.LTable {
+func createUrlTable(L *lua.LState, URL *url.URL) {
 	urlTable := L.NewTable()
 
+	L.SetGlobal("__LOOTBOX_URL", urlTable)
 	L.SetField(urlTable, "protocol", lua.LString(URL.Scheme))
 	L.SetField(urlTable, "username", lua.LString(URL.User.Username()))
 	if pass, ok := URL.User.Password(); ok {
@@ -163,8 +164,6 @@ func createUrlTable(L *lua.LState, URL *url.URL) *lua.LTable {
 	L.SetField(urlTable, "hash", lua.LString(URL.Fragment))
 
 	L.SetField(urlTable, "href", lua.LString(URL.String()))
-
-	return urlTable
 }
 
 func createResponseTable(L *lua.LState) *lua.LTable {
