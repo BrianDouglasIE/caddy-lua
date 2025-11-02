@@ -21,27 +21,37 @@ function contains(haystack, needle)
   return false
 end
 
-local function make_handler_alias_methods(router)
-  for _, method in ipairs(methods) do
-    router[string.lower(method)] = function(self, ...)
-      local args = {...}
-      local arg_count = #args
-      local pattern = args[1]
-      local handler = nil
-      local middleware = nil
-      
-      if arg_count == 2 then
-        handler = args[2]
-      elseif arg_count == 3 then
-        middleware = args[2]
-        handler = args[3]
-      else
-        error("Invalid argument count for " .. lower_name)
-      end
+function startswith(haystack, needle)
+  if #needle > #haystack then return false end
 
-      self:add(method, pattern, middleware, handler)
+  return string.sub(haystack, 0, #needle) == needle
+end
+
+assert(startswith("test", "tes"))
+assert(startswith("test", "s") == false)
+
+function endswith(haystack, needle)
+  if #needle > #haystack then return false end
+
+  return string.sub(haystack, #haystack - (#needle - 1), #haystack) == needle
+end
+
+assert(endswith("test", "st"))
+assert(endswith("test", "s") == false)
+
+function join_path(...)
+  local result = ""
+
+  local segments = { ... }
+  for _, segment in ipairs(segments) do
+    if endswith(segment, "/") then
+      result = result .. segment
+    else
+      result = result .. "/" .. segment
     end
   end
+
+  return result
 end
 
 LinkedListNode = {}
@@ -72,6 +82,14 @@ function LinkedList:add(value)
   end
 end
 
+function LinkedList:from(tbl)
+  local list = LinkedList:new()
+  for _, value in ipairs(tbl) do
+    list:add(value)
+  end
+  return list
+end
+
 Router = {}
 Router.__index = Router
 
@@ -85,37 +103,27 @@ local function parse_pattern(pattern)
   return parsed, params
 end
 
-function Router:new(url)
+function Router:new(base_path)
   local self = setmetatable({}, Router)
+  self.base_path = base_path or ""
   self.routes = {}
-  make_handler_alias_methods(self)
+
+  for _, method in ipairs(methods) do
+    self[string.lower(method)] = function(self, pattern, handlers)
+      self:add(method, pattern, handlers)
+    end
+  end
+
   return self
 end
 
-function Router:add(...)
-  local args = {...}
-  local arg_count = #args
-  local method = args[1] 
-  local pattern = args[2]
-  local handler = nil
-  local middleware = LinkedList:new()
-  
-  if arg_count == 3 then
-    handler = args[3]
-  elseif arg_count == 4 then
-    for _, middleware_method in ipairs(args[3]) do
-      middleware:add(middleware_method)
-    end
-    handler = args[4]
-  end
-  
+function Router:add(method, pattern, handlers)
   local parsed_pattern, params = parse_pattern(pattern)
   table.insert(self.routes, {
     method=method,
     pattern=parsed_pattern,
     params=params,
-    handler=handler,
-    middleware=middleware
+    handlers=LinkedList:from(handlers)
   })
 end
 
@@ -140,9 +148,7 @@ function Router:handle(route, params)
   local req = __LOOTBOX_REQ or {}
   req.params = params
 
-  local handlers = route.middleware
-  handlers:add(route.handler)
-
+  local handlers = route.handlers
   if handlers.count == 0 then return end
 
   local function run(node)
@@ -160,21 +166,29 @@ end
 -- tests
 
 local router = Router:new()
+
+router:get("/", { function () print("home") end })
+
 router:get("/books/:id", {
-function (req, res, next)
-  req.params.id = req.params.id + 1
-  next()
-end,
-function (req, res, next)
-  req.params.id = req.params.id + 1
-  next()
-end,
-function (req, res, next)
-  req.params.id = req.params.id + 1
-  next()
-end
-}, function (req, res, next)
-  print(req.params.id)
-end)
+  function (req, res, next)
+    req.params.id = req.params.id + 1
+    next()
+  end,
+  function (req, res, next)
+    req.params.id = req.params.id + 1
+    next()
+  end,
+  function (req, res, next)
+    req.params.id = req.params.id + 1
+    next()
+  end,
+  function (req, res, next)
+    print(req.params.id)
+  end
+})
+
+local home, home_params = router:match("/", "GET")
+router:handle(home, home_params)
+
 local route, params = router:match("/books/42", "GET")
 router:handle(route, params)
