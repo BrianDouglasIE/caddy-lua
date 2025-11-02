@@ -1,4 +1,4 @@
-local methods = {"GET", "PATCH", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE"}
+local methods = { "GET", "PATCH", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE" }
 
 function print_table(t, indent)
   indent = indent or ""
@@ -40,19 +40,30 @@ assert(endswith("test", "st"))
 assert(endswith("test", "s") == false)
 
 function join_path(...)
-  local result = ""
+  local sep = package.config:sub(1, 1)
+  local parts = { ... }
+  local cleaned = {}
 
-  local segments = { ... }
-  for _, segment in ipairs(segments) do
-    if endswith(segment, "/") then
-      result = result .. segment
+  for i, part in ipairs(parts) do
+    if i == 1 then
+      part = part:gsub(sep .. "+$", "")
     else
-      result = result .. "/" .. segment
+      part = part:gsub("^" .. sep .. "+", "")
+      part = part:gsub(sep .. "+$", "")
+    end
+    if part ~= "" then
+      table.insert(cleaned, part)
     end
   end
 
+  local result = table.concat(cleaned, sep)
   return result
 end
+
+assert(join_path("a", "b", "c") == "a/b/c")
+assert(join_path("a/", "/b", "c") == "a/b/c")
+assert(join_path("/a/", "/b/", "/c/") == "/a/b/c")
+assert(join_path("a//", "//b", "///c") == "a/b/c")
 
 LinkedListNode = {}
 LinkedListNode.__index = LinkedListNode
@@ -110,7 +121,7 @@ function Router:new(base_path)
 
   for _, method in ipairs(methods) do
     self[string.lower(method)] = function(self, pattern, handlers)
-      self:add(method, pattern, handlers)
+      self:add(method, join_path(self.base_path, pattern), handlers)
     end
   end
 
@@ -120,17 +131,17 @@ end
 function Router:add(method, pattern, handlers)
   local parsed_pattern, params = parse_pattern(pattern)
   table.insert(self.routes, {
-    method=method,
-    pattern=parsed_pattern,
-    params=params,
-    handlers=LinkedList:from(handlers)
+    method = method,
+    pattern = parsed_pattern,
+    params = params,
+    handlers = LinkedList:from(handlers)
   })
 end
 
 function Router:match(path, method)
   for _, route in ipairs(self.routes) do
     if route.method == method then
-      local captures = {path:match(route.pattern)}
+      local captures = { path:match(route.pattern) }
       if #captures > 0 then
         local params = {}
         for i, name in ipairs(route.params) do
@@ -161,33 +172,31 @@ function Router:handle(route, params)
   run(handlers.nodes[1])
 end
 
-
-
 -- tests
 
-local router = Router:new()
+local router = Router:new("/books")
 
-router:get("/", { function () print("home") end })
+router:get("/", { function() print("home") end })
 
-router:get("/books/:id", {
-  function (req, res, next)
+router:get("/:id", {
+  function(req, res, next)
     req.params.id = req.params.id + 1
     next()
   end,
-  function (req, res, next)
+  function(req, res, next)
     req.params.id = req.params.id + 1
     next()
   end,
-  function (req, res, next)
+  function(req, res, next)
     req.params.id = req.params.id + 1
     next()
   end,
-  function (req, res, next)
+  function(req, res, next)
     print(req.params.id)
   end
 })
 
-local home, home_params = router:match("/", "GET")
+local home, home_params = router:match("/books", "GET")
 router:handle(home, home_params)
 
 local route, params = router:match("/books/42", "GET")
