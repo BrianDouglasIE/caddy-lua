@@ -1,4 +1,4 @@
-package LOOTBOX
+package loot
 
 import (
 	"encoding/json"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/caddyserver/caddy"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
+	"github.com/julienschmidt/httprouter"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -19,13 +20,13 @@ func luaServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler
 	L := lua.NewState()
 	defer L.Close()
 
-	respTable := createResponseTable(L) // __LOOTBOX_RES
-	createRequestTable(L, r)            // __LOOTBOX_REQ
-	createServerInfoTable(L, r)         // __LOOTBOX_SRV
-	createEnvTable(L)                   // __LOOTBOX_ENV
-	createUtilTable(L)                  // __LOOTBOX_UTL
-	createUrlTable(L, r.URL)            // __LOOTBOX_URL
-	setCaddyNextMethod(L, w, r, next)   // __LOOTBOX_NXT
+	respTable := createResponseTable(L) // __loot_res
+	createRequestTable(L, r)            // __loot_req
+	createServerInfoTable(L, r)         // __loot_server_info
+	createEnvTable(L)                   // __loot_env
+	createUtilTable(L)                  // __loot_ext
+	createUrlTable(L, r.URL)            // __loot_url
+	setCaddyNextMethod(L, w, r, next)   // __loot_next
 
 	if err := L.DoString(luaBlock); err != nil {
 		http.Error(w, "Lua script error: "+err.Error(), http.StatusInternalServerError)
@@ -40,13 +41,13 @@ func luaServeHTTPFile(w http.ResponseWriter, r *http.Request, next caddyhttp.Han
 	L := lua.NewState()
 	defer L.Close()
 
-	respTable := createResponseTable(L) // __LOOTBOX_RES
-	createRequestTable(L, r)            // __LOOTBOX_REQ
-	createServerInfoTable(L, r)         // __LOOTBOX_SRV
-	createEnvTable(L)                   // __LOOTBOX_ENV
-	createUtilTable(L)                  // __LOOTBOX_UTL
-	createUrlTable(L, r.URL)            // __LOOTBOX_URL
-	setCaddyNextMethod(L, w, r, next)   // __LOOTBOX_NXT
+	respTable := createResponseTable(L) // __loot_res
+	createRequestTable(L, r)            // __loot_req
+	createServerInfoTable(L, r)         // __loot_server_info
+	createEnvTable(L)                   // __loot_env
+	createUtilTable(L)                  // __loot_ext
+	createUrlTable(L, r.URL)            // __loot_url
+	setCaddyNextMethod(L, w, r, next)   // __loot_next
 
 	if err := L.DoFile(filepath); err != nil {
 		http.Error(w, "Lua runtime error: "+err.Error(), http.StatusInternalServerError)
@@ -128,7 +129,7 @@ func getResponseStatus(statusField lua.LValue) int {
 
 func createRequestTable(L *lua.LState, r *http.Request) {
 	reqTable := L.NewTable()
-	L.SetGlobal("__LOOTBOX_REQ", reqTable)
+	L.SetGlobal("__loot_req", reqTable)
 	L.SetField(reqTable, "method", lua.LString(r.Method))
 	L.SetField(reqTable, "url", lua.LString(r.URL.String()))
 	L.SetField(reqTable, "proto", lua.LString(r.Proto))
@@ -149,7 +150,7 @@ func createRequestTable(L *lua.LState, r *http.Request) {
 func createUrlTable(L *lua.LState, URL *url.URL) {
 	urlTable := L.NewTable()
 
-	L.SetGlobal("__LOOTBOX_URL", urlTable)
+	L.SetGlobal("__loot_url", urlTable)
 	L.SetField(urlTable, "protocol", lua.LString(URL.Scheme))
 	L.SetField(urlTable, "username", lua.LString(URL.User.Username()))
 	if pass, ok := URL.User.Password(); ok {
@@ -168,8 +169,8 @@ func createUrlTable(L *lua.LState, URL *url.URL) {
 
 func createResponseTable(L *lua.LState) *lua.LTable {
 	respTable := L.NewTable()
-	L.SetGlobal("__LOOTBOX_RES", respTable)
-	L.SetField(respTable, "status", lua.LNumber(http.StatusOK))
+	L.SetGlobal("__loot_res", respTable)
+	L.SetField(respTable, "status", lua.LNumber(http.StatusNotFound))
 	L.SetField(respTable, "header", L.NewTable())
 	L.SetField(respTable, "body", lua.LString(""))
 	return respTable
@@ -177,7 +178,7 @@ func createResponseTable(L *lua.LState) *lua.LTable {
 
 func createServerInfoTable(L *lua.LState, r *http.Request) {
 	serverInfoTable := L.NewTable()
-	L.SetGlobal("__LOOTBOX_SRV", serverInfoTable)
+	L.SetGlobal("__loot_server_info", serverInfoTable)
 	L.SetField(serverInfoTable, "version", lua.LString(caddy.AppVersion))
 	L.SetField(serverInfoTable, "module", lua.LString("http.handlers.lua"))
 	L.SetField(serverInfoTable, "hostname", lua.LString(r.Host))
@@ -186,7 +187,7 @@ func createServerInfoTable(L *lua.LState, r *http.Request) {
 
 func createEnvTable(L *lua.LState) {
 	env := L.NewTable()
-	L.SetGlobal("__LOOTBOX_ENV", env)
+	L.SetGlobal("__loot_env", env)
 	for _, e := range os.Environ() {
 		parts := strings.SplitN(e, "=", 2)
 		L.SetField(env, parts[0], lua.LString(parts[1]))
@@ -195,7 +196,7 @@ func createEnvTable(L *lua.LState) {
 
 func createUtilTable(L *lua.LState) {
 	utilTable := L.NewTable()
-	L.SetGlobal("__LOOTBOX_UTL", utilTable)
+	L.SetGlobal("__loot_ext", utilTable)
 
 	L.SetField(utilTable, "json_encode", L.NewFunction(func(L *lua.LState) int {
 		val := L.CheckAny(1)
@@ -221,10 +222,35 @@ func createUtilTable(L *lua.LState) {
 		L.Push(goToLua(L, decoded))
 		return 1
 	}))
+
+	L.SetField(utilTable, "match_route", L.NewFunction(func(L *lua.LState) int {
+		routePath := L.CheckString(1)
+		pattern := L.CheckString(2)
+
+		router := httprouter.New()
+
+		router.Handle("GET", pattern, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		})
+
+		handler, params, _ := router.Lookup("GET", routePath)
+		if handler == nil {
+			L.Push(lua.LBool(false))
+			return 1
+		}
+
+		paramTable := L.NewTable()
+		for _, p := range params {
+			L.SetField(paramTable, p.Key, lua.LString(p.Value))
+		}
+
+		L.Push(lua.LBool(true))
+		L.Push(paramTable)
+		return 2
+	}))
 }
 
 func setCaddyNextMethod(L *lua.LState, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) {
-	L.SetGlobal("__LOOTBOX_NXT", L.NewFunction(func(L *lua.LState) int {
+	L.SetGlobal("__loot_next", L.NewFunction(func(L *lua.LState) int {
 		err := next.ServeHTTP(w, r)
 		if err != nil {
 			L.Push(lua.LString(err.Error()))

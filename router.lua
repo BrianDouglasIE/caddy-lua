@@ -1,4 +1,4 @@
-local utils = require("./utils")
+local utils = require("loot/utils")
 
 local methods = { "GET", "PATCH", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE" }
 
@@ -110,10 +110,10 @@ function Router:match(path, method)
 end
 
 function Router:handle(route, params)
-    local res = __LOOTBOX_RES or {}
-    local req = __LOOTBOX_REQ or {}
+    local res = __loot_res or {}
+    local req = __loot_req or {}
     req.params = params
-    req.url = __LOOTBOX_URL or {}
+    req.url = __loot_url or {}
 
     local handlers = route.handlers
     if handlers.count == 0 then return end
