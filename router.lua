@@ -1,3 +1,4 @@
+local config = require("loot/config")
 local utils = require("loot/utils")
 
 local methods = { "GET", "PATCH", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE" }
@@ -54,19 +55,9 @@ end
 Router = {}
 Router.__index = Router
 
-local function parse_pattern(pattern)
-    local params = {}
-    local parsed = pattern:gsub(":(%w+)", function(name)
-        table.insert(params, name)
-        return "([^/]+)"
-    end)
-    parsed = "^" .. parsed .. "$"
-    return parsed, params
-end
-
 function Router:new(base_path)
     local self = setmetatable({}, Router)
-    self.base_path = base_path or ""
+    self.base_path = utils.join_path(config.base_path, base_path) or config.base_path
     self.routes = {}
     self.middleware = LinkedList:new()
 
@@ -80,11 +71,9 @@ function Router:new(base_path)
 end
 
 function Router:add(method, pattern, handlers)
-    local parsed_pattern, params = parse_pattern(pattern)
     table.insert(self.routes, {
         method = method,
-        pattern = parsed_pattern,
-        params = params,
+        pattern = pattern,
         handlers = LinkedList:merge_table(self.middleware, handlers)
     })
 end
@@ -96,12 +85,9 @@ end
 function Router:match(path, method)
     for _, route in ipairs(self.routes) do
         if route.method == method then
-            local captures = { path:match(route.pattern) }
-            if #captures > 0 then
-                local params = {}
-                for i, name in ipairs(route.params) do
-                    params[name] = captures[i]
-                end
+            -- https://pkg.go.dev/github.com/julienschmidt/httprouter#Router.Lookup
+            local is_match, params = __loot_ext.match_route(path, route.pattern)
+            if is_match then
                 return route, params
             end
         end

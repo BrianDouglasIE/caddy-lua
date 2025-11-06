@@ -24,7 +24,7 @@ func luaServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler
 	createRequestTable(L, r)            // __loot_req
 	createServerInfoTable(L, r)         // __loot_server_info
 	createEnvTable(L)                   // __loot_env
-	createUtilTable(L)                  // __loot_ext
+	createExtTable(L)                   // __loot_ext
 	createUrlTable(L, r.URL)            // __loot_url
 	setCaddyNextMethod(L, w, r, next)   // __loot_next
 
@@ -45,7 +45,7 @@ func luaServeHTTPFile(w http.ResponseWriter, r *http.Request, next caddyhttp.Han
 	createRequestTable(L, r)            // __loot_req
 	createServerInfoTable(L, r)         // __loot_server_info
 	createEnvTable(L)                   // __loot_env
-	createUtilTable(L)                  // __loot_ext
+	createExtTable(L)                   // __loot_ext
 	createUrlTable(L, r.URL)            // __loot_url
 	setCaddyNextMethod(L, w, r, next)   // __loot_next
 
@@ -194,7 +194,7 @@ func createEnvTable(L *lua.LState) {
 	}
 }
 
-func createUtilTable(L *lua.LState) {
+func createExtTable(L *lua.LState) {
 	utilTable := L.NewTable()
 	L.SetGlobal("__loot_ext", utilTable)
 
@@ -229,8 +229,7 @@ func createUtilTable(L *lua.LState) {
 
 		router := httprouter.New()
 
-		router.Handle("GET", pattern, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		})
+		router.Handle("GET", pattern, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {})
 
 		handler, params, _ := router.Lookup("GET", routePath)
 		if handler == nil {

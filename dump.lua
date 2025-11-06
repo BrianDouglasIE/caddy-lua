@@ -9,7 +9,7 @@ local colors = {
     func   = "\27[95m",  -- purple
 }
 
-function _G.dump(...)
+function dump(...)
     local seen = {}
 
     local MAX_DEPTH = 6 
@@ -83,12 +83,12 @@ function _G.dump(...)
     end
 end
 
-function _G.dd(...)
+function dd(...)
     dump(...)
     os.exit()
 end
 
-function _G.ddd(...)
+function ddd(...)
     dump(...)
     print("\nEntering interactive debug mode (type 'cont' or 'quit' to exit)...\n")
     if debug and debug.debug then
@@ -98,3 +98,5 @@ function _G.ddd(...)
     end
     os.exit()
 end
+
+return dump
