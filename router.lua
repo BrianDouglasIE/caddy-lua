@@ -4,55 +4,6 @@ local utils = require("loot/utils")
 
 local methods = { "GET", "PATCH", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE" }
 
-LinkedListNode = {}
-LinkedListNode.__index = LinkedListNode
-
-function LinkedListNode:new(value)
-  local self = setmetatable({}, LinkedListNode)
-  self.value = value
-  self.next = nil
-  return self
-end
-
-LinkedList = {}
-LinkedList.__index = LinkedList
-
-function LinkedList:new()
-  local self = setmetatable({}, LinkedList)
-  self.nodes = {}
-  self.count = 0
-  return self
-end
-
-function LinkedList:add(value)
-  self.count = self.count + 1
-  self.nodes[self.count] = LinkedListNode:new(value)
-  if self.count > 1 then
-    self.nodes[self.count - 1].next = self.nodes[self.count]
-  end
-end
-
-function LinkedList:from(tbl)
-  local list = LinkedList:new()
-  for _, value in ipairs(tbl) do
-    list:add(value)
-  end
-  return list
-end
-
-function LinkedList:merge_table(list, tbl)
-  local new_list = LinkedList:new()
-  local head = list.nodes[1]
-  while head do
-    new_list:add(head.value)
-    head = head.next
-  end
-  for _, value in ipairs(tbl) do
-    new_list:add(value)
-  end
-  return new_list
-end
-
 Router = {}
 Router.__index = Router
 
@@ -60,7 +11,7 @@ function Router:new(base_path)
   local self = setmetatable({}, Router)
   self.base_path = config.base_path .. base_path or config.base_path
   self.routes = {}
-  self.middleware = LinkedList:new()
+  self.middleware = {}
 
   for _, method in ipairs(methods) do
     self[string.lower(method)] = function(self, pattern, handlers)
@@ -75,12 +26,14 @@ function Router:add(method, pattern, handlers)
   table.insert(self.routes, {
     method = method,
     pattern = self.base_path .. pattern,
-    handlers = LinkedList:merge_table(self.middleware, handlers)
+    handlers = utils.table_merge(self.middleware, handlers)
   })
+  return self
 end
 
 function Router:use(global_middleware)
-  self.middleware:add(global_middleware)
+  table.insert(self.middleware, global_middleware)
+  return self
 end
 
 function Router:match(path, method)
@@ -103,16 +56,15 @@ function Router:handle(route, params)
   req.url = __loot_url or {}
 
   local handlers = route.handlers
-  if handlers.count == 0 then return end
+  if not #handlers then return end
 
-  local function run(node)
-    if not node then return end
-    node.value(req, res, function()
-      run(node.next)
-    end)
+  local function run(current_index)
+    if current_index > #handlers then return end
+    local next_index = current_index + 1
+    handlers[current_index](req, res, function () run(next_index) end)
   end
 
-  run(handlers.nodes[1])
+  run(1)
 end
 
 return Router
