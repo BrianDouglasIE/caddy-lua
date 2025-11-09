@@ -19,6 +19,27 @@ function utils.table_equal(a, b)
     return true
 end
 
+function utils.table_contains(haystack, needle)
+    for _, v in ipairs(haystack) do
+        if v == needle then
+            return true
+        end
+    end
+    return false
+end
+
+function utils.string_startswith (haystack, needle)
+    if #needle > #haystack then return false end
+
+    return string.sub(haystack, 0, #needle) == needle
+end
+
+function utils.string_endswith (haystack, needle)
+    if #needle > #haystack then return false end
+
+    return string.sub(haystack, #haystack - (#needle - 1), #haystack) == needle
+end
+
 -- =======================
 -- Tests
 -- =======================
@@ -42,65 +63,18 @@ local function run_tests()
     assert(not utils.table_equal({1,2,3}, {3,2,1}), "Test 7 failed")
     assert(utils.table_equal({}, {}), "Test 8 failed")
 
+    assert(utils.table_contains({ 1, 2, 3 }, 2))
+    assert(utils.table_contains({ 1, 2, 3 }, 4) == false)
+
+    assert(utils.string_endswith("test", "st"))
+    assert(utils.string_endswith("test", "s") == false)
+
+    assert(utils.string_startswith("test", "tes"))
+    assert(utils.string_startswith("test", "s") == false)
+
     print("All tests passed!")
 end
 
 run_tests()
-
-utils.contains = function (haystack, needle)
-    for _, v in ipairs(haystack) do
-        if v == needle then
-            return true
-        end
-    end
-    return false
-end
-
-assert(utils.contains({ 1, 2, 3 }, 2))
-assert(utils.contains({ 1, 2, 3 }, 4) == false)
-
-utils.startswith = function (haystack, needle)
-    if #needle > #haystack then return false end
-
-    return string.sub(haystack, 0, #needle) == needle
-end
-
-assert(utils.startswith("test", "tes"))
-assert(utils.startswith("test", "s") == false)
-
-utils.endswith = function (haystack, needle)
-    if #needle > #haystack then return false end
-
-    return string.sub(haystack, #haystack - (#needle - 1), #haystack) == needle
-end
-
-assert(utils.endswith("test", "st"))
-assert(utils.endswith("test", "s") == false)
-
-utils.join_path = function (...)
-    local sep = package.config:sub(1, 1)
-    local parts = { ... }
-    local cleaned = {}
-
-    for i, part in ipairs(parts) do
-        if i == 1 then
-            part = part:gsub(sep .. "+$", "")
-        else
-            part = part:gsub("^" .. sep .. "+", "")
-            part = part:gsub(sep .. "+$", "")
-        end
-        if part ~= "" then
-            table.insert(cleaned, part)
-        end
-    end
-
-    local result = table.concat(cleaned, sep)
-    return result
-end
-
-assert(utils.join_path("a", "b", "c") == "a/b/c")
-assert(utils.join_path("a/", "/b", "c") == "a/b/c")
-assert(utils.join_path("/a/", "/b/", "/c/") == "/a/b/c")
-assert(utils.join_path("a//", "//b", "///c") == "a/b/c")
 
 return utils

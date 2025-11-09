@@ -1,3 +1,4 @@
+local Request = require("loot/request")
 local Response = require("loot/response")
 local dump = require("loot/dump")
 local config = require("loot/config")
@@ -40,7 +41,6 @@ end
 function Router:match(path, method)
   for _, route in ipairs(self.routes) do
     if route.method == method then
-      -- https://pkg.go.dev/github.com/julienschmidt/httprouter#Router.Lookup
       local is_match, params = __loot_ext.match_route(path, route.pattern)
       if is_match then
         return route, params
@@ -51,21 +51,24 @@ function Router:match(path, method)
 end
 
 function Router:handle(route, params)
-  local res = Response:new(__loot_res.status, __loot_res.headers, __loot_res.body) or {}
-  local req = __loot_req or {}
-  req.params = params
-  req.url = __loot_url or {}
+  local req = Request:new(params)
+  local res = Response:new(__loot_res.status, __loot_res.headers, __loot_res.body)
 
   local handlers = route.handlers
   if not #handlers then return end
 
-  local function run(current_index)
-    if current_index > #handlers then return end
-    local next_index = current_index + 1
-    handlers[current_index](req, res, function () run(next_index) end)
+  local co = coroutine.create(function()
+    for i = 1, #handlers do
+      handlers[i](req, res, function() 
+        coroutine.yield()
+      end)
+    end
+  end)
+
+  while coroutine.status(co) ~= "dead" do
+    coroutine.resume(co)
   end
 
-  run(1)
   __loot_res.status = res.status
   __loot_res.headers = res.headers
   __loot_res.body = res.body
