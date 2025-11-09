@@ -145,6 +145,24 @@ func createRequestTable(L *lua.LState, r *http.Request) {
 		headers.RawSetString(k, arr)
 	}
 	L.SetField(reqTable, "header", headers)
+
+	r.ParseMultipartForm(32 << 20) // 32MB memory limit
+
+	form := L.NewTable()
+	if r.Form != nil {
+		for key, vals := range r.Form {
+			if len(vals) == 1 {
+				L.SetField(form, key, lua.LString(vals[0]))
+			} else {
+				arr := L.NewTable()
+				for i, v := range vals {
+					arr.RawSetInt(i+1, lua.LString(v))
+				}
+				L.SetField(form, key, arr)
+			}
+		}
+	}
+	L.SetField(reqTable, "form", form)
 }
 
 func createUrlTable(L *lua.LState, URL *url.URL) {

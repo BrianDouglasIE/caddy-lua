@@ -1,3 +1,4 @@
+local Response = require("loot/response")
 local dump = require("loot/dump")
 local config = require("loot/config")
 local utils = require("loot/utils")
@@ -50,7 +51,7 @@ function Router:match(path, method)
 end
 
 function Router:handle(route, params)
-  local res = __loot_res or {}
+  local res = Response:new(__loot_res.status, __loot_res.headers, __loot_res.body) or {}
   local req = __loot_req or {}
   req.params = params
   req.url = __loot_url or {}
@@ -65,6 +66,9 @@ function Router:handle(route, params)
   end
 
   run(1)
+  __loot_res.status = res.status
+  __loot_res.headers = res.headers
+  __loot_res.body = res.body
 end
 
 return Router
