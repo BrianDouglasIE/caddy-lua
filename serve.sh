@@ -1,1 +1,0 @@
-./caddy-mod/bin/caddy run

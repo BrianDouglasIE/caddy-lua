@@ -1,4 +1,4 @@
-package LOOTBOX
+package loot
 
 import (
 	"fmt"

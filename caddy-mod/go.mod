@@ -1,4 +1,4 @@
-module github.com/briandouglasie/LOOTBOX
+module github.com/briandouglasie/loot
 
 go 1.25.3
 
@@ -60,6 +60,7 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
 	github.com/jackc/pgx/v5 v5.6.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
+	github.com/julienschmidt/httprouter v1.3.0
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/libdns/libdns v1.1.0 // indirect
